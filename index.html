@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlexRide — Soft Robotics Interior</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Syne:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#03030a;--panel:#07071a;--panel2:#0a0a20;
+  --bdr:rgba(200,170,80,0.13);--bdr2:rgba(200,170,80,0.3);
+  --gold:#d4a840;--gold2:#e8c060;--gd:rgba(212,168,64,0.14);
+  --cream:#f2ead8;--tx:#ece4cc;--tx2:rgba(236,228,204,.52);--tx3:rgba(236,228,204,.25);
+  --soft-r:#e05a3a;--soft-g:#3ae0a0;--soft-pulse:rgba(58,224,160,0.7);
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);
+  font-family:'Syne',sans-serif;color:var(--tx);cursor:none}
+
+#CR{position:fixed;width:9px;height:9px;border-radius:50%;background:var(--gold);pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:background .2s,width .15s,height .15s}
+#CRR{position:fixed;width:34px;height:34px;border-radius:50%;border:1px solid rgba(212,168,64,.38);pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:width .25s,height .25s}
+#CR.sel{background:var(--soft-g);width:12px;height:12px}
+#CRR.sel{border-color:rgba(58,224,160,.5);width:40px;height:40px}
+
+#app{width:100vw;height:100vh;display:grid;grid-template-columns:240px 1fr 260px;grid-template-rows:52px 1fr 64px}
+
+/* ── Topbar ── */
+#tb{grid-column:1/-1;grid-row:1;display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;border-bottom:1px solid var(--bdr);
+  background:linear-gradient(to bottom,rgba(3,3,10,.97),rgba(7,7,26,.94));z-index:30}
+.tb-logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;letter-spacing:.08em;color:var(--gold2)}
+.tb-logo em{font-style:italic;color:var(--cream)}
+.tb-modes{display:flex;gap:4px}
+.mp{padding:6px 15px;border-radius:2px;border:1px solid var(--bdr);background:transparent;
+  color:var(--tx2);font-family:'Syne',sans-serif;font-size:11px;letter-spacing:.14em;
+  cursor:none;transition:all .22s;text-transform:uppercase;position:relative;overflow:hidden}
+.mp:hover{color:var(--tx);border-color:var(--bdr2)}
+.mp.active{color:var(--gold);border-color:var(--gold);background:var(--gd)}
+.mp.lounge.active{color:#e89040;border-color:#e89040;background:rgba(232,144,64,.1)}
+.mp.cinema.active{color:#e04060;border-color:#e04060;background:rgba(224,64,96,.1)}
+.mp.rest.active{color:#40c890;border-color:#40c890;background:rgba(64,200,144,.1)}
+.mp.work.active{color:#4080d4;border-color:#4080d4;background:rgba(64,128,212,.1)}
+.tb-right{display:flex;align-items:center;gap:12px}
+.srb-dot{width:5px;height:5px;border-radius:50%;background:var(--soft-g);animation:p 2s infinite}
+.srb-label{font-size:10px;letter-spacing:.15em;color:var(--tx3)}
+@keyframes p{0%,100%{opacity:1;box-shadow:0 0 5px var(--soft-pulse)}50%{opacity:.35;box-shadow:none}}
+
+/* ── Left ── */
+#lp{grid-column:1;grid-row:2;border-right:1px solid var(--bdr);background:var(--panel);
+  display:flex;flex-direction:column;overflow-y:auto;scrollbar-width:none}
+#lp::-webkit-scrollbar{display:none}
+/* ── Viewport ── */
+#vp{grid-column:2;grid-row:2;position:relative;overflow:hidden}
+canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
+/* ── Right ── */
+#rp{grid-column:3;grid-row:2;border-left:1px solid var(--bdr);background:var(--panel);
+  display:flex;flex-direction:column;overflow-y:auto;scrollbar-width:none}
+#rp::-webkit-scrollbar{display:none}
+/* ── Bottom ── */
+#bb{grid-column:1/-1;grid-row:3;display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;border-top:1px solid var(--bdr);background:var(--panel2)}
+.bb-hint{font-size:11px;letter-spacing:.08em;color:var(--tx3)}
+.bb-hint.custom{color:var(--soft-g)}
+.bbtns{display:flex;gap:8px}
+.bbn{padding:8px 18px;border-radius:2px;border:1px solid var(--bdr2);background:transparent;
+  color:var(--gold);font-family:'Syne',sans-serif;font-size:10px;letter-spacing:.14em;
+  cursor:none;transition:all .2s;text-transform:uppercase}
+.bbn:hover{background:var(--gd);border-color:var(--gold)}
+.bbn.prim{background:var(--gd);border-color:var(--gold);color:var(--gold2)}
+
+/* ── Sections ── */
+.sec{padding:18px 16px;border-bottom:1px solid var(--bdr)}
+.slbl{font-size:9px;letter-spacing:.25em;color:var(--tx3);text-transform:uppercase;margin-bottom:12px}
+
+/* ── Env Buttons ── */
+.env-btn{display:flex;align-items:center;gap:10px;padding:10px 10px;border-radius:3px;
+  border:1px solid transparent;cursor:none;transition:all .2s;color:var(--tx2);font-size:12px;margin-bottom:2px}
+.env-btn:hover{background:rgba(255,255,255,.03);color:var(--tx)}
+.env-btn.active{background:var(--gd);border-color:var(--bdr2);color:var(--gold)}
+.esw{width:36px;height:36px;border-radius:3px;flex-shrink:0;overflow:hidden;position:relative}
+.env-name{font-size:12px;font-weight:500}
+.env-sub{font-size:10px;color:var(--tx3);margin-top:2px;letter-spacing:.04em}
+
+/* ── Soft Robotics Indicator ── */
+.srb-panel{padding:14px;background:rgba(58,224,160,.04);border:1px solid rgba(58,224,160,.12);border-radius:4px}
+.srb-row{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--tx2);padding:5px 0}
+.srb-bar{flex:1;height:2px;background:rgba(58,224,160,.1);border-radius:1px;margin:0 10px;overflow:hidden}
+.srb-fill{height:100%;background:var(--soft-g);border-radius:1px;transition:width 1.5s ease}
+.srb-val{font-size:10px;color:var(--soft-g);min-width:28px;text-align:right;letter-spacing:.05em}
+
+/* ── Mode Card ── */
+.mode-card{background:linear-gradient(135deg,rgba(212,168,64,.07),rgba(212,168,64,.03));
+  border:1px solid var(--bdr2);border-radius:4px;padding:14px}
+.mc-title{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:300;color:var(--gold2);margin-bottom:5px}
+.mc-desc{font-size:11px;color:var(--tx2);line-height:1.7;letter-spacing:.03em}
+.mc-reason{font-size:10px;color:var(--gold);margin-top:8px;letter-spacing:.06em;font-style:italic;opacity:.8}
+
+/* ── Custom Mode Panel ── */
+.cm-btn{width:100%;padding:12px;border-radius:3px;border:1px solid rgba(58,224,160,.3);
+  background:rgba(58,224,160,.05);color:var(--soft-g);font-family:'Syne',sans-serif;
+  font-size:11px;letter-spacing:.18em;text-transform:uppercase;cursor:none;transition:all .25s;text-align:center}
+.cm-btn:hover,.cm-btn.active{background:rgba(58,224,160,.12);border-color:rgba(58,224,160,.6);
+  color:#60f0b8;box-shadow:0 0 16px rgba(58,224,160,.08)}
+.cm-actions{display:none;margin-top:10px;display:none;flex-direction:column;gap:5px}
+.cm-actions.show{display:flex}
+.cma{width:100%;padding:9px;border:1px solid var(--bdr);background:transparent;color:var(--tx2);
+  font-family:'Syne',sans-serif;font-size:10px;letter-spacing:.1em;cursor:none;
+  border-radius:2px;transition:all .18s;text-align:center;text-transform:uppercase}
+.cma:hover{border-color:var(--bdr2);color:var(--tx);background:rgba(255,255,255,.03)}
+.cma.accent{border-color:rgba(58,224,160,.3);color:var(--soft-g)}
+
+/* ── Seat Color Picker ── */
+.sc-row{display:flex;gap:7px;margin-top:6px}
+.sc-dot{width:24px;height:24px;border-radius:50%;cursor:none;border:2px solid transparent;transition:all .18s}
+.sc-dot:hover,.sc-dot.active{border-color:var(--gold);transform:scale(1.2)}
+
+/* ── Slider ── */
+.srow{display:flex;flex-direction:column;gap:7px;margin-bottom:10px}
+.srow-h{display:flex;justify-content:space-between;font-size:10px;color:var(--tx2);letter-spacing:.05em}
+input[type=range]{width:100%;height:2px;-webkit-appearance:none;appearance:none;
+  background:rgba(212,168,64,.15);border-radius:1px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;
+  border-radius:50%;background:var(--gold);cursor:none;border:2px solid var(--bg)}
+
+/* ── Toggle btn ── */
+.togbtn{width:100%;padding:12px;border-radius:3px;border:1px solid var(--bdr2);background:transparent;
+  color:var(--gold);font-family:'Syne',sans-serif;font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;cursor:none;transition:all .25s;text-align:center;position:relative;overflow:hidden}
+.togbtn::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(212,168,64,.08),transparent);
+  transform:translateX(-100%);transition:transform .7s}
+.togbtn:hover::before{transform:translateX(100%)}
+.togbtn:hover{background:var(--gd)}
+.togbtn.active{background:rgba(212,168,64,.12);border-color:var(--gold);box-shadow:0 0 20px rgba(212,168,64,.08)}
+
+/* ── HUD ── */
+.hud{position:absolute;pointer-events:none;z-index:8}
+.hud-tl{top:0;left:0;right:0;padding:16px 20px;
+  background:linear-gradient(to bottom,rgba(3,3,10,.88) 0%,transparent 100%);
+  display:flex;justify-content:space-between;align-items:flex-start}
+.hud-badge{background:rgba(212,168,64,.1);border:1px solid var(--bdr2);border-radius:2px;padding:6px 12px}
+.hud-badge .lbl{font-size:9px;letter-spacing:.2em;color:var(--tx3);text-transform:uppercase}
+.hud-badge .val{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:300;color:var(--gold);margin-top:1px}
+
+/* ── Soft Robotics HUD Anim ── */
+#srb-hud{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  pointer-events:none;z-index:9;opacity:0;transition:opacity .4s;
+  display:flex;align-items:center;gap:8px;
+  background:rgba(3,3,10,.85);border:1px solid rgba(58,224,160,.3);
+  border-radius:20px;padding:6px 16px}
+#srb-hud.show{opacity:1}
+.srb-hud-dot{width:6px;height:6px;border-radius:50%;background:var(--soft-g);animation:p 1s infinite}
+.srb-hud-text{font-size:10px;letter-spacing:.2em;color:var(--soft-g)}
+
+/* ── Hologram ── */
+#holo{position:absolute;inset:0;pointer-events:none;z-index:7;opacity:0;transition:opacity .5s}
+#holo.on{opacity:1}
+.hgrid{position:absolute;inset:0;background-image:linear-gradient(rgba(212,168,64,.06) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(212,168,64,.06) 1px,transparent 1px);background-size:32px 32px}
+.hscan{position:absolute;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(212,168,64,.5),transparent);animation:sc 3.5s linear infinite}
+@keyframes sc{from{top:0}to{top:100%}}
+.hcorner{position:absolute;width:22px;height:22px;border-color:var(--gold);border-style:solid;opacity:.7}
+.hcorner.tl{top:12px;left:12px;border-width:1px 0 0 1px}
+.hcorner.tr{top:12px;right:12px;border-width:1px 1px 0 0}
+.hcorner.bl{bottom:12px;left:12px;border-width:0 0 1px 1px}
+.hcorner.br{bottom:12px;right:12px;border-width:0 1px 1px 0}
+.hwm{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+  font-size:9px;letter-spacing:.35em;color:rgba(212,168,64,.45)}
+
+/* ── Loader ── */
+#ld{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:24px;transition:opacity 1s,visibility 1s}
+#ld.out{opacity:0;visibility:hidden}
+.ld-logo{font-family:'Cormorant Garamond',serif;font-size:54px;font-weight:300;color:var(--tx)}
+.ld-logo em{font-style:italic;color:var(--gold)}
+.ld-bar{width:200px;height:1px;background:rgba(212,168,64,.15);position:relative;overflow:hidden}
+.ld-fill{position:absolute;inset:0;background:linear-gradient(to right,var(--gold),var(--gold2));
+  animation:lf 2s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes lf{from{width:0}to{width:100%}}
+.ld-sub{font-size:10px;letter-spacing:.3em;color:var(--tx3)}
+</style>
+</head>
+<body>
+<div id="CR"></div><div id="CRR"></div>
+
+<div id="ld">
+  <div class="ld-logo">Flex<em>Ride</em></div>
+  <div style="font-size:10px;letter-spacing:.4em;color:var(--tx3)">SOFT ROBOTICS INTERIOR SYSTEM</div>
+  <div class="ld-bar"><div class="ld-fill"></div></div>
+  <div class="ld-sub" id="ldmsg">Calibrating pneumatic actuators...</div>
+</div>
+
+<div id="app">
+
+<!-- Topbar -->
+<div id="tb">
+  <div class="tb-logo">Flex<em>Ride</em></div>
+  <div class="tb-modes">
+    <button class="mp lounge" data-m="lounge" onclick="setMode('lounge')">Lounge</button>
+    <button class="mp work active" data-m="work" onclick="setMode('work')">Work</button>
+    <button class="mp cinema" data-m="cinema" onclick="setMode('cinema')">Cinema</button>
+    <button class="mp rest" data-m="rest" onclick="setMode('rest')">Rest</button>
+  </div>
+  <div class="tb-right">
+    <div class="srb-dot"></div>
+    <span class="srb-label">SOFT ROBOTICS ACTIVE</span>
+  </div>
+</div>
+
+<!-- Left Panel -->
+<div id="lp">
+  <div class="sec">
+    <div class="slbl">Window Environment</div>
+    <div class="env-btn" data-env="city" onclick="setEnv('city')">
+      <div class="esw" id="esw-city"></div>
+      <div><div class="env-name">City Night</div><div class="env-sub">Urban neon & tower lights</div></div>
+    </div>
+    <div class="env-btn active" data-env="beach" onclick="setEnv('beach')">
+      <div class="esw" id="esw-beach"></div>
+      <div><div class="env-name">Coastal Morning</div><div class="env-sub">Ocean horizon & soft waves</div></div>
+    </div>
+    <div class="env-btn" data-env="forest" onclick="setEnv('forest')">
+      <div class="esw" id="esw-forest"></div>
+      <div><div class="env-name">Mountain Forest</div><div class="env-sub">Dense canopy & mist</div></div>
+    </div>
+    <div class="env-btn" data-env="space" onclick="setEnv('space')">
+      <div class="esw" id="esw-space"></div>
+      <div><div class="env-name">Open Space</div><div class="env-sub">Stars & deep cosmos</div></div>
+    </div>
+    <div class="env-btn" data-env="sunset" onclick="setEnv('sunset')">
+      <div class="esw" id="esw-sunset"></div>
+      <div><div class="env-name">Golden Dusk</div><div class="env-sub">Desert horizon glow</div></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="slbl">Soft Robotics Status</div>
+    <div class="srb-panel">
+      <div class="srb-row">
+        <span>Pneumatic Pressure</span>
+        <div class="srb-bar"><div class="srb-fill" id="srb-p" style="width:72%"></div></div>
+        <span class="srb-val">72%</span>
+      </div>
+      <div class="srb-row">
+        <span>Shape Memory</span>
+        <div class="srb-bar"><div class="srb-fill" id="srb-s" style="width:88%"></div></div>
+        <span class="srb-val">88%</span>
+      </div>
+      <div class="srb-row">
+        <span>Actuator Sync</span>
+        <div class="srb-bar"><div class="srb-fill" id="srb-a" style="width:95%"></div></div>
+        <span class="srb-val">95%</span>
+      </div>
+      <div class="srb-row">
+        <span>Flex Resistance</span>
+        <div class="srb-bar"><div class="srb-fill" id="srb-r" style="width:61%"></div></div>
+        <span class="srb-val">61%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="slbl">Ambient Light</div>
+    <div class="srow">
+      <div class="srow-h"><span>Cabin Brightness</span><span id="vl-c">65%</span></div>
+      <input type="range" min="0" max="100" value="65" oninput="setLight(this.value,'c')">
+    </div>
+    <div class="srow">
+      <div class="srow-h"><span>Window Luminance</span><span id="vl-w">80%</span></div>
+      <input type="range" min="0" max="100" value="80" oninput="setLight(this.value,'w')">
+    </div>
+  </div>
+</div>
+
+<!-- Viewport -->
+<div id="vp">
+  <canvas id="c3d"></canvas>
+  <!-- HUD -->
+  <div class="hud hud-tl">
+    <div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:23px;font-weight:300;color:var(--cream)">
+        Interior <em style="color:var(--gold)">Space</em> Designer
+      </div>
+      <div style="font-size:9px;letter-spacing:.28em;color:var(--tx3);margin-top:3px">SOFT ROBOTICS TRANSFORMATION ENGINE</div>
+    </div>
+    <div class="hud-badge">
+      <div class="lbl">Active Mode</div>
+      <div class="val" id="hval">Work</div>
+    </div>
+  </div>
+  <!-- Soft Robotics morphing indicator -->
+  <div id="srb-hud">
+    <div class="srb-hud-dot"></div>
+    <div class="srb-hud-text" id="srb-hud-txt">PNEUMATIC ACTUATORS ENGAGING</div>
+  </div>
+  <!-- Hologram -->
+  <div id="holo">
+    <div class="hgrid"></div><div class="hscan"></div>
+    <div class="hcorner tl"></div><div class="hcorner tr"></div>
+    <div class="hcorner bl"></div><div class="hcorner br"></div>
+    <div class="hwm">FlexRide — Holographic Preview Mode</div>
+  </div>
+</div>
+
+<!-- Right Panel -->
+<div id="rp">
+  <div class="sec">
+    <div class="slbl">Mode Configuration</div>
+    <div class="mode-card">
+      <div class="mc-title" id="mc-t">Work Mode</div>
+      <div class="mc-desc" id="mc-d">Four seats arranged in dual forward-facing pairs. Each has a fold-out desk surface activated by pneumatic arm extension.</div>
+      <div class="mc-reason" id="mc-r">— Designed for 2–4hr transit productivity</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="slbl">Custom Layout Mode</div>
+    <button class="cm-btn" id="cm-btn" onclick="toggleCustom()">✦ &nbsp;Enter Custom Design</button>
+    <div class="cm-actions" id="cm-actions">
+      <div style="font-size:10px;color:var(--tx3);margin-bottom:6px;line-height:1.6;letter-spacing:.04em">
+        Click a seat to select it (highlighted in green).<br>Then drag it anywhere in the cabin.<br>Right-click to rotate 45°.
+      </div>
+      <button class="cma accent" onclick="rotateSel(-1)">↺ Rotate Left 45°</button>
+      <button class="cma accent" onclick="rotateSel(1)">↻ Rotate Right 45°</button>
+      <button class="cma" onclick="reclineSel()">⟳ Toggle Recline</button>
+      <div class="slbl" style="margin-top:10px;margin-bottom:6px">Selected Seat Fabric</div>
+      <div class="sc-row">
+        <div class="sc-dot active" style="background:#3a2d60" onclick="setSeatFabric(0)" data-ci="0"></div>
+        <div class="sc-dot" style="background:#5a1818" onclick="setSeatFabric(1)" data-ci="1"></div>
+        <div class="sc-dot" style="background:#1a3040" onclick="setSeatFabric(2)" data-ci="2"></div>
+        <div class="sc-dot" style="background:#2e3a10" onclick="setSeatFabric(3)" data-ci="3"></div>
+        <div class="sc-dot" style="background:#3a2010" onclick="setSeatFabric(4)" data-ci="4"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="slbl">Holographic Preview</div>
+    <button class="togbtn" id="holo-btn" onclick="toggleHolo()">◈ &nbsp; Activate Hologram</button>
+  </div>
+
+  <div class="sec">
+    <div class="slbl">Camera</div>
+    <button class="togbtn" id="orbit-btn" onclick="toggleOrbit()" style="margin-bottom:6px">↻ &nbsp;Auto Orbit: ON</button>
+    <button class="togbtn" onclick="resetCam()">⊙ &nbsp; Reset View</button>
+  </div>
+</div>
+
+<!-- Bottom Bar -->
+<div id="bb">
+  <div class="bb-hint" id="bbh">Drag to orbit · Scroll to zoom</div>
+  <div class="bbtns">
+    <button class="bbn" onclick="doSave()">Save Layout</button>
+    <button class="bbn prim" onclick="doApply()">Apply Configuration</button>
+  </div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ══════════════════════════════════════════════
+// CURSOR
+// ══════════════════════════════════════════════
+const CR=document.getElementById('CR'),CRR=document.getElementById('CRR');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;CR.style.left=mx+'px';CR.style.top=my+'px'});
+(function ac(){rx+=(mx-rx)*.12;ry+=(my-ry)*.12;CRR.style.left=rx+'px';CRR.style.top=ry+'px';requestAnimationFrame(ac)})();
+
+// ══════════════════════════════════════════════
+// RENDERER
+// ══════════════════════════════════════════════
+const canvas=document.getElementById('c3d'),VP=document.getElementById('vp');
+const R=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
+R.setPixelRatio(Math.min(devicePixelRatio,2));
+R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;
+R.toneMapping=THREE.ACESFilmicToneMapping;R.toneMappingExposure=1.05;
+R.setClearColor(0x03030a,1);
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x03030a,.028);
+const cam=new THREE.PerspectiveCamera(50,1,.1,80);
+cam.position.set(0,3.8,7.2);cam.lookAt(0,.6,0);
+function onResize(){const w=VP.clientWidth,h=VP.clientHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
+onResize();window.addEventListener('resize',onResize);
+
+// ══════════════════════════════════════════════
+// MATERIALS
+// ══════════════════════════════════════════════
+const M={
+  floor: new THREE.MeshStandardMaterial({color:0x080814,roughness:.88,metalness:.06}),
+  floorGloss: new THREE.MeshStandardMaterial({color:0x14122a,roughness:.08,metalness:.4,transparent:true,opacity:.3}),
+  wall:  new THREE.MeshStandardMaterial({color:0x0c0c1e,roughness:.94}),
+  ceil:  new THREE.MeshStandardMaterial({color:0x050510,roughness:1}),
+  goldTrim: new THREE.MeshStandardMaterial({color:0xd4a840,roughness:.15,metalness:.95,emissive:0x443010,emissiveIntensity:.3}),
+  glowStrip: new THREE.MeshStandardMaterial({color:0xd4a840,emissive:0xd4a840,emissiveIntensity:1.4,transparent:true,opacity:.65}),
+  seatLeather: new THREE.MeshStandardMaterial({color:0x2a2448,roughness:.78,metalness:.02}),
+  seatQuilt: new THREE.MeshStandardMaterial({color:0x1e1a3a,roughness:.82,metalness:.0}),
+  seatSide: new THREE.MeshStandardMaterial({color:0x1a1630,roughness:.75,metalness:.04}),
+  seatMetal: new THREE.MeshStandardMaterial({color:0xc8a030,roughness:.2,metalness:.88,emissive:0x3a2808,emissiveIntensity:.4}),
+  headrest: new THREE.MeshStandardMaterial({color:0x222040,roughness:.7,metalness:.0}),
+  softCore: new THREE.MeshStandardMaterial({color:0x3ae0a0,roughness:.6,metalness:.0,emissive:0x1a6040,emissiveIntensity:.5,transparent:true,opacity:.85}),
+  table: new THREE.MeshStandardMaterial({color:0x12102a,roughness:.28,metalness:.55}),
+  screen: new THREE.MeshStandardMaterial({color:0x0a0825,roughness:.08,emissive:0x060520,emissiveIntensity:.9}),
+};
+
+// fabric variants for custom mode
+const fabricVariants=[
+  {leather:0x2a2448,quilt:0x1e1a3a,side:0x1a1630},
+  {leather:0x4a1818,quilt:0x381010,side:0x2e1010},
+  {leather:0x18304a,quilt:0x102030,side:0x101828},
+  {leather:0x243a12,quilt:0x182808,side:0x141e08},
+  {leather:0x3a2210,quilt:0x281608,side:0x1e1006},
+];
+
+// ══════════════════════════════════════════════
+// WINDOW CANVAS TEXTURES (real painted skyboxes)
+// ══════════════════════════════════════════════
+function makeWinTex(type){
+  const cv=document.createElement('canvas');cv.width=256;cv.height=192;
+  const ctx=cv.getContext('2d');
+  if(type==='beach'){
+    // Sky gradient
+    const sky=ctx.createLinearGradient(0,0,0,120);
+    sky.addColorStop(0,'#4a9fd8');sky.addColorStop(.5,'#7dc8f0');sky.addColorStop(1,'#c8e8ff');
+    ctx.fillStyle=sky;ctx.fillRect(0,0,256,120);
+    // Sun
+    const sun=ctx.createRadialGradient(200,60,0,200,60,40);
+    sun.addColorStop(0,'rgba(255,245,180,1)');sun.addColorStop(.4,'rgba(255,220,80,.8)');sun.addColorStop(1,'rgba(255,200,0,0)');
+    ctx.fillStyle=sun;ctx.fillRect(0,0,256,120);
+    // Ocean
+    const ocean=ctx.createLinearGradient(0,120,0,192);
+    ocean.addColorStop(0,'#1a7ab8');ocean.addColorStop(.5,'#0f5a8a');ocean.addColorStop(1,'#0a3a60');
+    ctx.fillStyle=ocean;ctx.fillRect(0,120,256,72);
+    // Ocean shimmer lines
+    ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=1;
+    for(let y=125;y<192;y+=6){ctx.beginPath();ctx.moveTo(0,y);ctx.bezierCurveTo(60,y-2,190,y+2,256,y);ctx.stroke();}
+    // Beach strip
+    const beach=ctx.createLinearGradient(0,115,0,130);
+    beach.addColorStop(0,'#e8c870');beach.addColorStop(1,'#d4a840');
+    ctx.fillStyle=beach;ctx.fillRect(0,115,256,15);
+    // Distant mountains/dunes
+    ctx.fillStyle='rgba(210,180,100,.4)';
+    ctx.beginPath();ctx.moveTo(0,118);ctx.quadraticCurveTo(60,105,130,118);ctx.quadraticCurveTo(200,108,256,118);ctx.fill();
+  } else if(type==='city'){
+    // Night sky
+    const sky=ctx.createLinearGradient(0,0,0,192);
+    sky.addColorStop(0,'#03030f');sky.addColorStop(.6,'#08081e');sky.addColorStop(1,'#0d0d28');
+    ctx.fillStyle=sky;ctx.fillRect(0,0,256,192);
+    // Stars
+    for(let i=0;i<80;i++){
+      const sx=Math.random()*256,sy=Math.random()*80;
+      const r=Math.random()<.1?.8:.3;
+      ctx.fillStyle=`rgba(255,255,255,${.4+Math.random()*.6})`;
+      ctx.beginPath();ctx.arc(sx,sy,r,0,Math.PI*2);ctx.fill();
+    }
+    // Building silhouettes
+    const bldgs=[[0,80,30,112],[32,60,25,132],[58,50,18,142],[78,65,22,127],[102,45,35,147],[140,55,20,137],
+      [162,70,28,122],[192,40,30,152],[224,62,32,130]];
+    bldgs.forEach(([x,h,w,y])=>{
+      ctx.fillStyle='#060618';ctx.fillRect(x,y-h,w,h+50);
+      // Windows
+      for(let wy=y-h+4;wy<y;wy+=8){
+        for(let wx=x+3;wx<x+w-3;wx+=5){
+          if(Math.random()>.4){
+            const wc=Math.random()>.7?'rgba(255,200,80,.8)':'rgba(180,200,255,.6)';
+            ctx.fillStyle=wc;ctx.fillRect(wx,wy,3,4);
+          }
+        }
+      }
+    });
+    // Neon reflections on ground
+    const ref=ctx.createLinearGradient(0,150,0,192);
+    ref.addColorStop(0,'rgba(255,60,20,.04)');ref.addColorStop(.5,'rgba(80,120,255,.06)');ref.addColorStop(1,'rgba(0,0,0,.8)');
+    ctx.fillStyle=ref;ctx.fillRect(0,150,256,42);
+    // Street glow
+    ctx.fillStyle='rgba(255,80,20,.18)';ctx.fillRect(60,160,40,32);
+    ctx.fillStyle='rgba(100,150,255,.15)';ctx.fillRect(160,155,50,37);
+  } else if(type==='forest'){
+    // Sky through canopy
+    const sky=ctx.createLinearGradient(0,0,0,80);
+    sky.addColorStop(0,'#0a2010');sky.addColorStop(1,'#1a4020');
+    ctx.fillStyle=sky;ctx.fillRect(0,0,256,80);
+    // Mist
+    ctx.fillStyle='rgba(180,220,180,.08)';
+    for(let i=0;i<4;i++){ctx.fillRect(0,40+i*10,256,8);}
+    // Tree trunks far
+    ctx.fillStyle='#081408';
+    for(let x=0;x<256;x+=14){const h=40+Math.random()*30;ctx.fillRect(x,80-h,3+Math.random()*4,h+120);}
+    // Mid canopy
+    ctx.fillStyle='#0f2810';
+    for(let x=-20;x<280;x+=22){
+      const cy=60+Math.random()*20;
+      ctx.beginPath();ctx.ellipse(x,cy,18,22,0,0,Math.PI*2);ctx.fill();
+    }
+    // Foreground canopy dark
+    ctx.fillStyle='#060f08';
+    for(let x=-10;x<270;x+=18){
+      ctx.beginPath();ctx.ellipse(x,90,20,30,0,0,Math.PI*2);ctx.fill();
+    }
+    // Light rays
+    ctx.strokeStyle='rgba(180,255,120,.06)';ctx.lineWidth=12;
+    [[50,0,30,192],[120,0,100,192],[200,0,180,192]].forEach(([x1,y1,x2,y2])=>{
+      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+    });
+    // Ground moss
+    const grd=ctx.createLinearGradient(0,140,0,192);
+    grd.addColorStop(0,'#0a1e08');grd.addColorStop(1,'#050e04');
+    ctx.fillStyle=grd;ctx.fillRect(0,140,256,52);
+  } else if(type==='space'){
+    // Deep space
+    ctx.fillStyle='#000008';ctx.fillRect(0,0,256,192);
+    // Stars varied sizes
+    for(let i=0;i<200;i++){
+      const sx=Math.random()*256,sy=Math.random()*192,sz=Math.random();
+      if(sz>.95){ctx.fillStyle=`rgba(180,210,255,${.7+sz*.3})`;ctx.beginPath();ctx.arc(sx,sy,.8,0,Math.PI*2);ctx.fill();}
+      else if(sz>.8){ctx.fillStyle=`rgba(255,255,255,${.3+sz*.4})`;ctx.fillRect(sx,sy,.7,.7);}
+      else{ctx.fillStyle=`rgba(200,210,255,${.1+sz*.3})`;ctx.fillRect(sx,sy,.4,.4);}
+    }
+    // Nebula cloud
+    const neb=ctx.createRadialGradient(80,90,0,80,90,70);
+    neb.addColorStop(0,'rgba(80,40,140,.22)');neb.addColorStop(.5,'rgba(40,20,80,.12)');neb.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=neb;ctx.fillRect(0,0,256,192);
+    const neb2=ctx.createRadialGradient(190,110,0,190,110,60);
+    neb2.addColorStop(0,'rgba(20,60,120,.2)');neb2.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=neb2;ctx.fillRect(0,0,256,192);
+    // Distant planet
+    const planet=ctx.createRadialGradient(210,50,0,210,50,22);
+    planet.addColorStop(0,'rgba(200,150,80,.7)');planet.addColorStop(.6,'rgba(160,100,40,.4)');planet.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=planet;ctx.beginPath();ctx.arc(210,50,22,0,Math.PI*2);ctx.fill();
+    // Rings
+    ctx.strokeStyle='rgba(200,160,80,.25)';ctx.lineWidth=3;
+    ctx.beginPath();ctx.ellipse(210,55,35,8,-.2,0,Math.PI*2);ctx.stroke();
+    // Milky way
+    const mw=ctx.createLinearGradient(0,100,256,90);
+    mw.addColorStop(0,'rgba(150,170,220,.0)');mw.addColorStop(.3,'rgba(150,170,220,.06)');
+    mw.addColorStop(.5,'rgba(180,200,255,.1)');mw.addColorStop(.7,'rgba(150,170,220,.06)');mw.addColorStop(1,'rgba(150,170,220,.0)');
+    ctx.fillStyle=mw;ctx.fillRect(0,0,256,192);
+  } else if(type==='sunset'){
+    // Gradient sky
+    const sky=ctx.createLinearGradient(0,0,0,192);
+    sky.addColorStop(0,'#1a0808');sky.addColorStop(.25,'#6a1a08');
+    sky.addColorStop(.5,'#d44010');sky.addColorStop(.65,'#f07020');
+    sky.addColorStop(.8,'#f0a030');sky.addColorStop(1,'#e8c050');
+    ctx.fillStyle=sky;ctx.fillRect(0,0,256,192);
+    // Sun disc
+    const sun=ctx.createRadialGradient(128,135,0,128,135,25);
+    sun.addColorStop(0,'rgba(255,250,200,1)');sun.addColorStop(.3,'rgba(255,220,80,.9)');sun.addColorStop(1,'rgba(255,120,0,0)');
+    ctx.fillStyle=sun;ctx.fillRect(0,0,256,192);
+    // Horizon glow
+    ctx.fillStyle='rgba(255,180,0,.15)';ctx.fillRect(0,120,256,30);
+    // Desert/dune silhouettes
+    ctx.fillStyle='rgba(20,8,0,.9)';
+    ctx.beginPath();ctx.moveTo(0,192);ctx.lineTo(0,148);
+    ctx.quadraticCurveTo(40,138,80,150);ctx.quadraticCurveTo(128,130,180,148);
+    ctx.quadraticCurveTo(220,138,256,152);ctx.lineTo(256,192);ctx.fill();
+    // Dust haze
+    const haze=ctx.createLinearGradient(0,130,0,165);
+    haze.addColorStop(0,'rgba(200,100,20,.0)');haze.addColorStop(.5,'rgba(200,100,20,.1)');haze.addColorStop(1,'rgba(180,80,10,.0)');
+    ctx.fillStyle=haze;ctx.fillRect(0,130,256,35);
+    // Clouds
+    ctx.fillStyle='rgba(255,100,20,.2)';
+    [[30,40,50,14],[100,25,70,10],[190,35,55,12]].forEach(([x,y,rw,rh])=>{
+      ctx.beginPath();ctx.ellipse(x,y,rw,rh,0,0,Math.PI*2);ctx.fill();
+    });
+  }
+  return new THREE.CanvasTexture(cv);
+}
+
+const winTextures={beach:makeWinTex('beach'),city:makeWinTex('city'),forest:makeWinTex('forest'),space:makeWinTex('space'),sunset:makeWinTex('sunset')};
+// Draw env swatches in HTML
+Object.entries(winTextures).forEach(([k,t])=>{
+  const el=document.getElementById('esw-'+k);if(!el)return;
+  const cv=t.image;el.appendChild(cv.cloneNode());
+  el.firstChild.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:3px';
+});
+
+const winPanelMats={};
+Object.entries(winTextures).forEach(([k,t])=>{
+  winPanelMats[k]=new THREE.MeshStandardMaterial({map:t,roughness:.3,metalness:.0,emissive:new THREE.Color(.04,.04,.06),emissiveIntensity:.4});
+});
+let winMeshes=[];
+
+// ══════════════════════════════════════════════
+// CABIN SHELL
+// ══════════════════════════════════════════════
+const cabin=new THREE.Group();scene.add(cabin);
+
+// Floor
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(6.4,12),M.floor);
+floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;cabin.add(floor);
+// Gloss strip
+const gloss=new THREE.Mesh(new THREE.PlaneGeometry(1.8,12),M.floorGloss);
+gloss.rotation.x=-Math.PI/2;gloss.position.y=.004;cabin.add(gloss);
+
+// Ceiling
+const ceil=new THREE.Mesh(new THREE.PlaneGeometry(6.4,12),M.ceil);
+ceil.rotation.x=Math.PI/2;ceil.position.y=2.7;cabin.add(ceil);
+
+// Walls
+[[6.4,2.72,[0,1.36,-6],0],[6.4,2.72,[0,1.36,6],Math.PI],
+ [12,2.72,[-3.2,1.36,0],Math.PI/2],[12,2.72,[3.2,1.36,0],-Math.PI/2]
+].forEach(([w,h,p,ry])=>{
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),M.wall);
+  m.position.set(...p);m.rotation.y=ry;m.receiveShadow=true;cabin.add(m);
+});
+
+// Ceiling glow strips
+[-2.6,-1.4,0,1.4,2.6].forEach(x=>{
+  const s=new THREE.Mesh(new THREE.BoxGeometry(.055,.055,11.5),M.glowStrip);
+  s.position.set(x,2.66,0);cabin.add(s);
+});
+
+// Gold pillar trim on walls
+[-3.18,3.18].forEach(wx=>{
+  [-3.5,-1.75,0,1.75,3.5].forEach(z=>{
+    const p=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,2.7,10),M.goldTrim);
+    p.position.set(wx,1.35,z);cabin.add(p);
+  });
+});
+// Vertical trims on side
+[-1.5,0,1.5].forEach(x=>{
+  const t=new THREE.Mesh(new THREE.BoxGeometry(.035,2.7,.035),M.goldTrim);t.position.set(x,1.35,0);cabin.add(t);
+});
+
+// Wainscot base strip
+[-3.19,3.19].forEach(wx=>{
+  const ws=new THREE.Mesh(new THREE.BoxGeometry(.06,.6,11.5),M.wall);
+  ws.position.set(wx,.3,0);cabin.add(ws);
+  const gstrip=new THREE.Mesh(new THREE.BoxGeometry(.06,.03,11.5),M.goldTrim);
+  gstrip.position.set(wx,.61,0);cabin.add(gstrip);
+});
+
+// Windows — left & right walls with real painted texture
+function makeWindow(z){
+  // Frame gold
+  const fg=new THREE.Mesh(new THREE.BoxGeometry(.07,1.1,1.25),M.goldTrim);
+  fg.position.set(-3.18,1.55,z);cabin.add(fg);
+  // Glass panel with texture
+  const gp=new THREE.Mesh(new THREE.PlaneGeometry(1.1,.9),winPanelMats['beach']);
+  gp.rotation.y=Math.PI/2;gp.position.set(-3.17,1.55,z);
+  cabin.add(gp);winMeshes.push(gp);
+  // Right
+  const fg2=new THREE.Mesh(new THREE.BoxGeometry(.07,1.1,1.25),M.goldTrim);
+  fg2.position.set(3.18,1.55,z);cabin.add(fg2);
+  const gp2=new THREE.Mesh(new THREE.PlaneGeometry(1.1,.9),winPanelMats['beach']);
+  gp2.rotation.y=-Math.PI/2;gp2.position.set(3.17,1.55,z);
+  cabin.add(gp2);winMeshes.push(gp2);
+}
+[-3.8,-2.5,-1.2,1.2,2.5,3.8].forEach(makeWindow);
+
+// Front screen
+const scr=new THREE.Mesh(new THREE.PlaneGeometry(5.2,1.5),M.screen);
+scr.position.set(0,1.5,-5.96);cabin.add(scr);
+const scrFrame=new THREE.Mesh(new THREE.BoxGeometry(5.35,1.65,.05),M.goldTrim);
+scrFrame.position.set(0,1.5,-5.94);cabin.add(scrFrame);
+
+// ══════════════════════════════════════════════
+// REALISTIC SEAT BUILDER
+// ══════════════════════════════════════════════
+/*
+  Real automotive seat structure:
+  - Tubular metal base/legs with cross rails
+  - Seat pan (foam padded)
+  - Quilted cushion with side bolsters
+  - Backrest with lumbar, wings, headrest
+  - Integrated headrest wings
+  - Armrests
+  - Soft robotics actuator nodes (glowing green dots on frame joints)
+*/
+function buildCarSeat(lMat,qMat,sMat){
+  const g=new THREE.Group();
+  const lm=lMat||M.seatLeather,qm=qMat||M.seatQuilt,sm=sMat||M.seatSide;
+
+  // ── Rail base (floor runners)
+  const railGeo=new THREE.BoxGeometry(.06,.04,.72);
+  [-.38,.38].forEach(x=>{
+    const r=new THREE.Mesh(railGeo,M.seatMetal);r.position.set(x,.04,0);r.castShadow=true;g.add(r);
+  });
+  // Cross rail front/rear
+  const cRail=new THREE.BoxGeometry(.82,.04,.04);
+  const cf=new THREE.Mesh(cRail,M.seatMetal);cf.position.set(0,.04,.32);g.add(cf);
+  const cb=new THREE.Mesh(cRail,M.seatMetal);cb.position.set(0,.04,-.32);g.add(cb);
+
+  // ── Seat frame uprights
+  const upGeo=new THREE.BoxGeometry(.06,.38,.06);
+  [-.38,.38].forEach(x=>{[-.3,.3].forEach(z=>{
+    const up=new THREE.Mesh(upGeo,M.seatMetal);up.position.set(x,.22,z);up.castShadow=true;g.add(up);
+  });});
+
+  // ── Seat pan shell
+  const pan=new THREE.Mesh(new THREE.BoxGeometry(.9,.07,.72),sm);
+  pan.position.set(0,.44,0);pan.castShadow=true;pan.receiveShadow=true;g.add(pan);
+
+  // ── Seat cushion (main + bolsters)
+  const cush=new THREE.Mesh(new THREE.BoxGeometry(.76,.11,.62),lm);
+  cush.position.set(0,.52,.02);cush.castShadow=true;g.add(cush);
+  // Quilted center
+  const qcush=new THREE.Mesh(new THREE.BoxGeometry(.62,.06,.5),qm);
+  qcush.position.set(0,.58,.02);g.add(qcush);
+  // Side bolsters
+  [-.41,.41].forEach(x=>{
+    const bol=new THREE.Mesh(new THREE.BoxGeometry(.1,.12,.58),sm);
+    bol.position.set(x,.5,.02);g.add(bol);
+  });
+  // Front lip
+  const lip=new THREE.Mesh(new THREE.BoxGeometry(.9,.05,.06),sm);
+  lip.position.set(0,.46,.32);g.add(lip);
+
+  // ── Backrest frame
+  const bfGeo=new THREE.BoxGeometry(.06,.9,.06);
+  [-.38,.38].forEach(x=>{
+    const bf=new THREE.Mesh(bfGeo,M.seatMetal);bf.position.set(x,.93,-.33);bf.castShadow=true;g.add(bf);
+  });
+  const btop=new THREE.Mesh(new THREE.BoxGeometry(.82,.06,.06),M.seatMetal);
+  btop.position.set(0,1.37,-.33);g.add(btop);
+
+  // ── Backrest shell
+  const back=new THREE.Mesh(new THREE.BoxGeometry(.9,.85,.1),sm);
+  back.position.set(0,.97,-.34);back.castShadow=true;g.add(back);
+  // Quilted back pad
+  const qback=new THREE.Mesh(new THREE.BoxGeometry(.72,.7,.06),lm);
+  qback.position.set(0,.97,-.29);g.add(qback);
+  // Lumbar bulge
+  const lumbar=new THREE.Mesh(new THREE.BoxGeometry(.6,.22,.05),qm);
+  lumbar.position.set(0,.72,-.25);g.add(lumbar);
+  // Back side bolsters
+  [-.41,.41].forEach(x=>{
+    const bb=new THREE.Mesh(new THREE.BoxGeometry(.1,.72,.12),sm);
+    bb.position.set(x,.97,-.3);g.add(bb);
+  });
+
+  // ── Shoulder wings
+  [-.36,.36].forEach(x=>{
+    const w=new THREE.Mesh(new THREE.BoxGeometry(.1,.22,.1),sm);
+    w.position.set(x,1.3,-.28);g.add(w);
+  });
+
+  // ── Headrest
+  const hr=new THREE.Mesh(new THREE.BoxGeometry(.78,.28,.14),M.headrest);
+  hr.position.set(0,1.54,-.3);hr.castShadow=true;g.add(hr);
+  const hrPad=new THREE.Mesh(new THREE.BoxGeometry(.62,.2,.08),lm);
+  hrPad.position.set(0,1.54,-.23);g.add(hrPad);
+  // Headrest post
+  [-.18,.18].forEach(x=>{
+    const post=new THREE.Mesh(new THREE.CylinderGeometry(.014,.014,.2,8),M.seatMetal);
+    post.position.set(x,1.42,-.3);g.add(post);
+  });
+
+  // ── Armrests
+  [-.48,.48].forEach(x=>{
+    const arm=new THREE.Mesh(new THREE.BoxGeometry(.1,.05,.44),sm);
+    arm.position.set(x,.7,-.05);g.add(arm);
+    const armPad=new THREE.Mesh(new THREE.BoxGeometry(.08,.04,.38),lm);
+    armPad.position.set(x,.73,-.05);g.add(armPad);
+    const armPost=new THREE.Mesh(new THREE.BoxGeometry(.05,.28,.05),M.seatMetal);
+    armPost.position.set(x,.57,-.05);g.add(armPost);
+  });
+
+  // ── Gold accent stitching strip
+  const stitch=new THREE.Mesh(new THREE.BoxGeometry(.58,.008,.008),M.goldTrim);
+  stitch.position.set(0,.6,.04);g.add(stitch);
+  const stitch2=new THREE.Mesh(new THREE.BoxGeometry(.008,.56,.008),M.goldTrim);
+  stitch2.position.set(0,.96,-.25);g.add(stitch2);
+
+  // ── SOFT ROBOTICS NODES (glowing green pneumatic nodes at joints)
+  // These are the visible actuator indicators showing soft robotics is active
+  const nodePositions=[
+    [-.38,.25,.3],[.38,.25,.3],[-.38,.25,-.3],[.38,.25,-.3],  // seat base corners
+    [-.38,.48,-.33],[.38,.48,-.33],                            // back-seat junction
+    [0,.72,-.34],                                              // lumbar actuator
+    [-.38,1.37,-.33],[.38,1.37,-.33],                         // shoulder actuators
+  ];
+  nodePositions.forEach(p=>{
+    const node=new THREE.Mesh(new THREE.SphereGeometry(.025,8,8),M.softCore);
+    node.position.set(...p);g.add(node);
+    // Outer glow ring
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(.035,.008,6,16),
+      new THREE.MeshStandardMaterial({color:0x3ae0a0,emissive:0x3ae0a0,emissiveIntensity:.8,transparent:true,opacity:.5}));
+    ring.position.set(...p);ring.rotation.x=Math.PI/2;g.add(ring);
+  });
+
+  // ── Soft robotics pneumatic tubes (thin lines connecting nodes)
+  const tubePairs=[[nodePositions[0],nodePositions[1]],[nodePositions[2],nodePositions[3]],
+    [nodePositions[4],nodePositions[5]],[nodePositions[6],nodePositions[7]]];
+  tubePairs.forEach(([a,b])=>{
+    const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2];
+    const len=Math.sqrt((b[0]-a[0])**2+(b[1]-a[1])**2+(b[2]-a[2])**2);
+    const tube=new THREE.Mesh(new THREE.CylinderGeometry(.008,.008,len,6),
+      new THREE.MeshStandardMaterial({color:0x3ae0a0,emissive:0x1a6040,emissiveIntensity:.4,transparent:true,opacity:.7}));
+    tube.position.set(...mid);
+    if(Math.abs(a[0]-b[0])>.1)tube.rotation.z=Math.PI/2;
+    g.add(tube);
+  });
+
+  return g;
+}
+
+function buildPedestalTable(w,d){
+  const g=new THREE.Group();
+  const top=new THREE.Mesh(new THREE.BoxGeometry(w,.045,d),M.table);
+  top.position.y=.72;top.castShadow=true;g.add(top);
+  // Gold edge
+  ['front','back','left','right'].forEach(side=>{
+    let eg;
+    if(side==='front'||side==='back'){
+      eg=new THREE.Mesh(new THREE.BoxGeometry(w,.028,.022),M.goldTrim);
+      eg.position.set(0,.737,side==='front'?d/2:-d/2);
+    } else {
+      eg=new THREE.Mesh(new THREE.BoxGeometry(.022,.028,d),M.goldTrim);
+      eg.position.set(side==='right'?w/2:-w/2,.737,0);
+    }
+    g.add(eg);
+  });
+  // Column
+  const col=new THREE.Mesh(new THREE.CylinderGeometry(.045,.065,.7,12),M.seatMetal);
+  col.position.y=.35;g.add(col);
+  // Base disc
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.035,20),M.goldTrim);
+  base.position.y=.018;g.add(base);
+  // Soft robotics node on table base
+  const tn=new THREE.Mesh(new THREE.SphereGeometry(.022,8,8),M.softCore);
+  tn.position.set(.05,.74,0);g.add(tn);
+  return g;
+}
+
+// ══════════════════════════════════════════════
+// SEAT INSTANCES
+// ══════════════════════════════════════════════
+const seatGroup=new THREE.Group();scene.add(seatGroup);
+const seats=[];
+for(let i=0;i<4;i++){
+  const s=buildCarSeat();
+  s.castShadow=true;seatGroup.add(s);seats.push(s);
+}
+let tableObj=null;
+function removeTable(){if(tableObj){seatGroup.remove(tableObj);tableObj=null;}}
+function addTable(w,d,pos){tableObj=buildPedestalTable(w,d);tableObj.position.set(...pos);seatGroup.add(tableObj);}
+
+// ══════════════════════════════════════════════
+// MODE DEFINITIONS — with design rationale
+// ══════════════════════════════════════════════
+/*
+  LOUNGE: Seats face each other → social, conversation
+  WORK:   Forward-facing pairs with desk → productivity
+  CINEMA: All forward, reclined → viewing, relaxation
+  REST:   Lateral recline, merged → sleeping/rest
+*/
+const MODES={
+  lounge:{
+    seats:[
+      {p:[-1.1,0,-1.1],r:[0,0,0]},
+      {p:[ 1.1,0,-1.1],r:[0,0,0]},
+      {p:[-1.1,0, 1.1],r:[0,Math.PI,0]},
+      {p:[ 1.1,0, 1.1],r:[0,Math.PI,0]},
+    ],
+    table:{p:[0,0,0],w:.95,d:.65},
+    cam:{p:[0,3.8,6.5],l:[0,.8,0]},
+    title:'Lounge Mode',
+    desc:'Four seats face each other around a central pedestal table. Pneumatic actuators raise the armrests and recline the backs slightly outward for a relaxed social posture.',
+    reason:'Optimised for conversation, group rides & social interaction',
+    rColor:'#e89040',
+  },
+  work:{
+    seats:[
+      {p:[-1.0,0,-1.4],r:[0,.08,0]},
+      {p:[ 1.0,0,-1.4],r:[0,-.08,0]},
+      {p:[-1.0,0, .8],r:[0,.08,0]},
+      {p:[ 1.0,0, .8],r:[0,-.08,0]},
+    ],
+    table:{p:[0,0,-.32],w:1.25,d:.58},
+    cam:{p:[2.2,3.6,6.2],l:[0,.8,0]},
+    title:'Work Mode',
+    desc:'Seats angle slightly inward to reduce shoulder tension during laptop work. Shape-memory foam firms the lumbar zone. A shared table deploys from the floor via pneumatic column.',
+    reason:'Designed for 2–4hr productive transit sessions',
+    rColor:'#4080d4',
+  },
+  cinema:{
+    seats:[
+      {p:[-1.15,0,-1.7],r:[0,0,-.08]},
+      {p:[   0, 0,-1.7],r:[0,0,0]},
+      {p:[ 1.15,0,-1.7],r:[0,0,.08]},
+      {p:[   0, 0, .5],r:[0,0,0]},
+    ],
+    table:null,
+    cam:{p:[0,3.2,7.0],l:[0,.9,-1.0]},
+    title:'Cinema Mode',
+    desc:'All seats align toward the panoramic display. Backrests recline 20° via pneumatic extension. Outer seats tilt slightly inward creating a stadium-style viewing arc.',
+    reason:'Full immersive in-cabin cinematic experience',
+    rColor:'#e04060',
+  },
+  rest:{
+    seats:[
+      {p:[-1.1,0, .2],r:[0,-Math.PI/2,-.28]},
+      {p:[  0, 0, .2],r:[0,-Math.PI/2,-.28]},
+      {p:[ 1.1,0, .2],r:[0,-Math.PI/2,-.28]},
+      {p:[ -.4,0,-1.6],r:[0,0,0]},
+    ],
+    table:null,
+    cam:{p:[-2.2,3.0,6.0],l:[0,.6,0]},
+    title:'Rest Mode',
+    desc:'Three seats rotate 90° and recline into a near-flat bed surface. Soft-fill chambers inflate uniformly to create a continuous mattress. One seat remains upright for a companion.',
+    reason:'Full-length rest configuration for long-haul journeys',
+    rColor:'#40c890',
+  },
+};
+
+// ══════════════════════════════════════════════
+// TRANSITION
+// ══════════════════════════════════════════════
+let curMode='work';
+let trans={active:false,t:0,dur:1.8,data:[]};
+let camTgt={p:new THREE.Vector3(2.2,3.6,6.2),l:new THREE.Vector3(0,.8,0)};
+let camLook=new THREE.Vector3(0,.8,0);
+
+function eio(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+
+function setMode(m){
+  if(m===curMode&&!customMode)return;
+  if(customMode)toggleCustom();
+  curMode=m;
+  document.querySelectorAll('.mp').forEach(b=>b.classList.toggle('active',b.dataset.m===m));
+  const md=MODES[m];
+  document.getElementById('hval').textContent=m.charAt(0).toUpperCase()+m.slice(1);
+  document.getElementById('mc-t').textContent=md.title;
+  document.getElementById('mc-d').textContent=md.desc;
+  const rc=document.getElementById('mc-r');
+  rc.textContent='— '+md.reason;rc.style.color=md.rColor;
+  // Soft robotics HUD
+  showSRBhud('PNEUMATIC ACTUATORS ENGAGING');
+  camTgt.p.set(...md.cam.p);camTgt.l.set(...md.cam.l);
+  removeTable();if(md.table)addTable(md.table.w,md.table.d,md.table.p);
+  trans.data=seats.map((s,i)=>({mesh:s,sp:s.position.clone(),sr:new THREE.Euler().copy(s.rotation),
+    tp:new THREE.Vector3(...md.seats[i].p),tr:new THREE.Euler(...md.seats[i].r)}));
+  trans.active=true;trans.t=0;
+  animateSRBbars();
+}
+
+function showSRBhud(txt,dur=2200){
+  const h=document.getElementById('srb-hud');
+  document.getElementById('srb-hud-txt').textContent=txt;
+  h.classList.add('show');setTimeout(()=>h.classList.remove('show'),dur);
+}
+
+function animateSRBbars(){
+  const bars=[['srb-p',60,85],['srb-s',75,95],['srb-a',85,99],['srb-r',50,70]];
+  bars.forEach(([id,lo,hi])=>{
+    const el=document.getElementById(id);const pv=document.querySelector('#'+id).parentElement.parentElement;
+    const v=lo+Math.round(Math.random()*(hi-lo));
+    el.style.width=v+'%';
+    pv.querySelector('.srb-val').textContent=v+'%';
+  });
+}
+
+// ══════════════════════════════════════════════
+// CUSTOM MODE — real 3D drag on floor plane
+// ══════════════════════════════════════════════
+let customMode=false,selIdx=-1,draggingSeat=false;
+const raycaster=new THREE.Raycaster();
+const m2=new THREE.Vector2();
+const FLOOR_PLANE=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+const dPt=new THREE.Vector3();
+
+// Floor picking helpers for seat
+function pickSeat(e){
+  const rect=canvas.getBoundingClientRect();
+  m2.x=((e.clientX-rect.left)/rect.width)*2-1;
+  m2.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(m2,cam);
+  const hits=raycaster.intersectObjects(seats,true);
+  if(!hits.length)return-1;
+  let obj=hits[0].object;
+  while(obj.parent&&!seats.includes(obj))obj=obj.parent;
+  return seats.indexOf(obj);
+}
+function getFloorPoint(e){
+  const rect=canvas.getBoundingClientRect();
+  m2.x=((e.clientX-rect.left)/rect.width)*2-1;
+  m2.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(m2,cam);
+  raycaster.ray.intersectPlane(FLOOR_PLANE,dPt);
+}
+function clampSeat(s){
+  s.position.x=Math.max(-2.4,Math.min(2.4,s.position.x));
+  s.position.z=Math.max(-5.0,Math.min(5.0,s.position.z));
+}
+
+function toggleCustom(){
+  customMode=!customMode;
+  const btn=document.getElementById('cm-btn');
+  const act=document.getElementById('cm-actions');
+  btn.classList.toggle('active',customMode);
+  btn.textContent=customMode?'✦  Exit Custom Design':'✦  Enter Custom Design';
+  act.classList.toggle('show',customMode);
+  document.getElementById('bbh').textContent=customMode?'Click a seat to select (green) · Drag to move · Right-click to rotate':'Drag to orbit · Scroll to zoom';
+  document.getElementById('bbh').className='bb-hint'+(customMode?' custom':'');
+  if(!customMode){selIdx=-1;seats.forEach(s=>highlightSeat(s,false));CR.style.background='var(--gold)';CRR.style.borderColor='rgba(212,168,64,.38)';}
+  else{CR.style.background='var(--soft-g)';CRR.style.borderColor='rgba(58,224,160,.4)';}
+}
+
+function highlightSeat(s,on){
+  s.traverse(c=>{
+    if(c.isMesh&&c.material===M.seatLeather){
+      c.material.emissive=on?new THREE.Color(.04,.25,.12):new THREE.Color(0,0,0);
+      c.material.emissiveIntensity=on?.6:0;
+    }
+  });
+}
+
+function rotateSel(dir){if(selIdx<0)return;seats[selIdx].rotation.y+=dir*Math.PI/4;showSRBhud('ROTATING SEAT MODULE',600);}
+function reclineSel(){
+  if(selIdx<0)return;
+  const s=seats[selIdx];
+  s.rotation.x=s.rotation.x===0?-.18:0;
+  showSRBhud('ADJUSTING BACKREST ANGLE',800);
+}
+function setSeatFabric(idx){
+  if(selIdx<0)return;
+  const f=fabricVariants[idx];
+  const s=seats[selIdx];
+  s.traverse(c=>{
+    if(!c.isMesh)return;
+    if(c.material===M.seatLeather||c.material.color&&c.material.color.getHex()===M.seatLeather.color.getHex())
+      c.material=new THREE.MeshStandardMaterial({color:f.leather,roughness:.78,metalness:.02});
+    if(c.material===M.seatQuilt)c.material=new THREE.MeshStandardMaterial({color:f.quilt,roughness:.82});
+    if(c.material===M.seatSide)c.material=new THREE.MeshStandardMaterial({color:f.side,roughness:.75,metalness:.04});
+  });
+  document.querySelectorAll('.sc-dot').forEach((b,i)=>b.classList.toggle('active',i===idx));
+}
+
+// Pointer events on canvas
+let camDragging=false,camLast={x:0,y:0};
+let sph={r:7.5,phi:.52,theta:.3};
+
+canvas.addEventListener('mousedown',e=>{
+  if(customMode){
+    const idx=pickSeat(e);
+    if(idx>=0){
+      if(selIdx>=0)highlightSeat(seats[selIdx],false);
+      selIdx=idx;highlightSeat(seats[idx],true);
+      draggingSeat=true;CR.classList.add('sel');CRR.classList.add('sel');
+    } else {selIdx=-1;seats.forEach(s=>highlightSeat(s,false));}
+  } else {
+    camDragging=true;camLast={x:e.clientX,y:e.clientY};
+    orbitActive=false;document.getElementById('orbit-btn').textContent='↻  Auto Orbit: OFF';
+  }
+});
+window.addEventListener('mouseup',()=>{
+  draggingSeat=false;camDragging=false;
+  CR.classList.remove('sel');CRR.classList.remove('sel');
+});
+window.addEventListener('mousemove',e=>{
+  if(draggingSeat&&selIdx>=0){
+    getFloorPoint(e);
+    seats[selIdx].position.x=dPt.x;
+    seats[selIdx].position.z=dPt.z;
+    clampSeat(seats[selIdx]);
+  } else if(camDragging){
+    const dx=(e.clientX-camLast.x)*.005;
+    const dy=(e.clientY-camLast.y)*.004;
+    sph.theta-=dx;
+    sph.phi=Math.max(.1,Math.min(1.3,sph.phi+dy));
+    camLast={x:e.clientX,y:e.clientY};
+    updateSphericalCam();
+  }
+});
+canvas.addEventListener('contextmenu',e=>{e.preventDefault();if(customMode&&selIdx>=0)rotateSel(1);});
+canvas.addEventListener('wheel',e=>{
+  sph.r=Math.max(2.8,Math.min(14,sph.r+e.deltaY*.007));
+  updateSphericalCam();
+});
+function updateSphericalCam(){
+  camTgt.p.set(
+    sph.r*Math.sin(sph.phi)*Math.sin(sph.theta),
+    sph.r*Math.cos(sph.phi)+.8,
+    sph.r*Math.sin(sph.phi)*Math.cos(sph.theta)
+  );
+}
+
+// ══════════════════════════════════════════════
+// ORBIT
+// ══════════════════════════════════════════════
+let orbitActive=true,orbitAngle=0;
+function toggleOrbit(){
+  orbitActive=!orbitActive;
+  document.getElementById('orbit-btn').textContent='↻  Auto Orbit: '+(orbitActive?'ON':'OFF');
+}
+function resetCam(){
+  const md=MODES[curMode];camTgt.p.set(...md.cam.p);camTgt.l.set(...md.cam.l);
+  sph={r:7.5,phi:.52,theta:.3};orbitActive=true;
+  document.getElementById('orbit-btn').textContent='↻  Auto Orbit: ON';
+}
+
+// ══════════════════════════════════════════════
+// LIGHTS
+// ══════════════════════════════════════════════
+const aLight=new THREE.AmbientLight(0x1a1540,1.0);scene.add(aLight);
+const sun=new THREE.DirectionalLight(0xfff8e8,2.0);
+sun.position.set(4,10,5);sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=sun.shadow.camera.bottom=-10;
+sun.shadow.camera.right=sun.shadow.camera.top=10;
+scene.add(sun);
+const fill=new THREE.PointLight(0x5040bb,2.8,14);fill.position.set(0,2.8,0);scene.add(fill);
+const rimL=new THREE.PointLight(0x2820aa,3.0,9);rimL.position.set(-3,2.4,0);scene.add(rimL);
+const rimR=new THREE.PointLight(0x2820aa,3.0,9);rimR.position.set(3,2.4,0);scene.add(rimR);
+const underGlow=new THREE.PointLight(0xd4a840,.8,5);underGlow.position.set(0,.12,0);scene.add(underGlow);
+// Soft robotics glow light (teal)
+const srbLight=new THREE.PointLight(0x3ae0a0,.4,4);srbLight.position.set(0,.5,0);scene.add(srbLight);
+
+// ══════════════════════════════════════════════
+// ENV & SETTINGS
+// ══════════════════════════════════════════════
+let curEnv='beach';
+function setEnv(env){
+  curEnv=env;
+  document.querySelectorAll('.env-btn').forEach(b=>b.classList.toggle('active',b.dataset.env===env));
+  const mat=winPanelMats[env];
+  winMeshes.forEach(m=>m.material=mat);
+  // Tint fill light per env
+  const tints={beach:0x2060a0,city:0x101040,forest:0x103020,space:0x050530,sunset:0x602010};
+  fill.color.setHex(tints[env]);rimL.color.setHex(tints[env]);rimR.color.setHex(tints[env]);
+}
+function setLight(v,t){
+  document.getElementById('vl-'+t).textContent=v+'%';
+  if(t==='c'){aLight.intensity=v/100*1.5;fill.intensity=v/100*4.0;}
+  else{winMeshes.forEach(m=>{if(m.material.emissiveIntensity!==undefined)m.material.emissiveIntensity=v/100*1.2;});}
+}
+function toggleHolo(){
+  const on=document.getElementById('holo').classList.toggle('on');
+  document.getElementById('holo-btn').classList.toggle('active',on);
+  document.getElementById('holo-btn').textContent=(on?'◈   Deactivate':'◈   Activate')+' Hologram';
+}
+function doSave(){const d=seats.map((s,i)=>({seat:i+1,x:+s.position.x.toFixed(2),z:+s.position.z.toFixed(2),rotY:+(s.rotation.y*180/Math.PI).toFixed(0)+'°'}));alert('Layout saved:\n'+JSON.stringify(d,null,2));}
+function doApply(){showSRBhud('APPLYING CONFIGURATION TO VEHICLE',3000);setTimeout(()=>alert('Configuration applied to vehicle.\nSoft robotics will execute on next journey start.'),600);}
+
+// ══════════════════════════════════════════════
+// PARTICLES
+// ══════════════════════════════════════════════
+const pN=200,pGeo=new THREE.BufferGeometry(),pArr=new Float32Array(pN*3);
+for(let i=0;i<pN;i++){pArr[i*3]=(Math.random()-.5)*6;pArr[i*3+1]=Math.random()*2.7;pArr[i*3+2]=(Math.random()-.5)*11;}
+pGeo.setAttribute('position',new THREE.BufferAttribute(pArr,3));
+const pts=new THREE.Points(pGeo,new THREE.PointsMaterial({color:0xd4a840,size:.02,transparent:true,opacity:.18}));
+scene.add(pts);
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+MODES.work.seats.forEach((c,i)=>{seats[i].position.set(...c.p);seats[i].rotation.set(...c.r);});
+addTable(MODES.work.table.w,MODES.work.table.d,MODES.work.table.p);
+
+// ══════════════════════════════════════════════
+// RENDER LOOP
+// ══════════════════════════════════════════════
+const clk=new THREE.Clock();let T=0;
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=clk.getDelta();T+=dt;
+
+  // Seat transitions
+  if(trans.active){
+    trans.t=Math.min(1,trans.t+dt/trans.dur);
+    const e=eio(trans.t);
+    const sq=1-Math.sin(trans.t*Math.PI)*.05;
+    trans.data.forEach(d=>{
+      d.mesh.position.lerpVectors(d.sp,d.tp,e);
+      d.mesh.rotation.x=d.sr.x+(d.tr.x-d.sr.x)*e;
+      d.mesh.rotation.y=d.sr.y+(d.tr.y-d.sr.y)*e;
+      d.mesh.rotation.z=d.sr.z+(d.tr.z-d.sr.z)*e;
+      d.mesh.scale.y=sq;
+    });
+    if(trans.t>=1){trans.active=false;trans.data.forEach(d=>d.mesh.scale.y=1);}
+  }
+
+  // Camera
+  if(orbitActive&&!camDragging&&!draggingSeat){
+    orbitAngle+=dt*.13;
+    camTgt.p.set(Math.sin(orbitAngle)*6.8*.55,3.8+Math.sin(orbitAngle*.4)*.3,Math.cos(orbitAngle)*6.8);
+  }
+  cam.position.lerp(camTgt.p,.05);
+  camLook.lerp(camTgt.l,.05);
+  cam.lookAt(camLook);
+
+  // Light animation
+  fill.intensity=2.2+Math.sin(T*.65)*.3;
+  rimL.position.z=Math.sin(T*.3)*2.2;
+  rimR.position.z=Math.cos(T*.3)*2.2;
+  underGlow.intensity=.6+Math.sin(T*1.1)*.2;
+  // Soft robotics pulse
+  M.glowStrip.emissiveIntensity=1.1+Math.sin(T*.8)*.35;
+  srbLight.intensity=.3+Math.sin(T*2.5)*.15;
+  M.softCore.emissiveIntensity=.4+Math.sin(T*2.8)*.25;
+
+  // Particles drift
+  const pa=pts.geometry.attributes.position.array;
+  for(let i=0;i<pN;i++){pa[i*3+1]+=.0015;if(pa[i*3+1]>2.7)pa[i*3+1]=0;}
+  pts.geometry.attributes.position.needsUpdate=true;
+
+  R.render(scene,cam);
+}
+
+// ══════════════════════════════════════════════
+// LOADER
+// ══════════════════════════════════════════════
+const ldmsgs=['Calibrating pneumatic actuators...','Building shape-memory mesh...','Loading environment textures...','Initialising 3D seat geometry...','FlexRide ready.'];
+let lmi=0;const ldm=document.getElementById('ldmsg');
+const ldiv=setInterval(()=>{lmi++;if(lmi<ldmsgs.length)ldm.textContent=ldmsgs[lmi];},400);
+setTimeout(()=>{clearInterval(ldiv);document.getElementById('ld').classList.add('out');animate();},2400);
+</script>
+</body>
+</html>
